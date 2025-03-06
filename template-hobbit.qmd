@@ -1,0 +1,226 @@
+---
+title: "Template"
+---
+
+```{r setup}
+library(tidyverse)
+library(tidytext)
+library(pdftools)
+library(ggwordcloud)
+library(textdata)
+```
+
+## Get text of The Hobbit
+
+```{r}
+hobbit_text <- pdftools::pdf_text(here::here('data', 'the-hobbit.pdf'))
+```
+
+-   Each row is a page of the PDF (i.e., this is a vector of strings, one for each page)
+-   Only sees text that is "selectable"
+
+- Always should examine how the pdf got translated. How does the translation handle page numbers, headers, chapters, any whitespace?
+
+In this case, each page is a separate index of the character vector.
+
+Example: Just want to get text from a single page (e.g. Page 34)?
+
+```{r}
+hobbit_p34 <- hobbit_text[34]
+```
+
+## The analysis:
+
+Using the text of The Hobbit by J.R.R. Tolkien:
+
+1.  Find the top 5 words per chapter (excluding common and non-informative words).
+2.  Create a word cloud (just for chapter 1).
+3.  How does the mood of the text change over the various chapters?
+
+
+
+## Prep the data
+
+Let's convert the text into a dataframe so we can start our analysis. Our goal is to put each line of the book into a unique row of data with an index for page number.
+
+Two new functions will help us get there:
+
+`str_split()`: Separate a vector of data into a vector using a distinct pattern as the split market
+
+`unnest()`: Extract each element of a vector as an observation row in a dataframe
+
+Hint: What patterns did you notice about of how each page handles line skips?
+
+```{r}
+
+```
+
+## Do some tidying
+
+Now, we'll add a new column that contains the Chapter number (so we can use this as a grouping variable later on).
+
+We will use `str_detect()` to look for any cells in "text_full" column that contains the string "Chapter", and if it does, the new column will contain that chapter number. Fill in the 4th line of code marked with the chapter=XXX with working code.
+
+```{r}
+hobbit_chapts <- hobbit_lines |> 
+  slice(-(1:137)) |> 
+  mutate(chapter = XXX) |> 
+  fill(chapter, .direction = 'down') |>
+  separate(col = chapter, into = c("ch", "num"), sep = " ") |> 
+  mutate(chapter = as.numeric(as.roman(num)))
+```
+
+## Get some word counts by Chapter!
+
+Now that we have wrangled so that each line has all the text, we need to tokenize the data so that each word is it's own observation.
+
+```{r}
+hobbit_words <- hobbit_chapts |> 
+  unnest_tokens(word, text_full) |> 
+  select(-hobbit_text)
+```
+
+
+`dplyr::count()` is a cool function that quickly counts up the observation of a specific word or instance of data without using the usual `group_by()` to `summarize(n=n())` format. Use `count()` to quickly see how many times specific words occured in each chapter.
+
+```{r}
+
+```
+
+
+
+## Remove stop words
+
+Those very common (and often uninteresting) words are called "stop words." See `?stop_words` and `View(stop_words)`to look at documentation for stop words lexicons (from the `tidytext` package).
+
+We will *remove* stop words using `tidyr::anti_join()`, which will *omit* any words in `stop_words` from `hobbit_tokens`.
+
+```{r}
+
+wordcount_clean <- hobbit_wordcount |> 
+  anti_join(stop_words, by = 'word')
+```
+
+## Find the top 5 words from each chapter
+
+Wrangle the top 5 word counts in each chapter then make a geom_col graph with a facet_wrap on each chapter.
+
+```{r}
+
+```
+
+## Let's make a word cloud for Chapter 1
+
+Wordclouds are fun visualizations to see the composition of words in a document. It weights and orients the most frequent words to appear larger and more central in an image. Rather than looking at all the words, let's only look at the top 100. Otherwise the graph will look ugly.
+
+Use your own data wrangling skills to create a data frame of only the 100 words in Chapter 1 with the stop words removed. Call the new dataframe `ch1_top100`.
+
+```{r}
+
+```
+
+
+Run this code to see your beautfiul world cloud appear.
+
+```{r}
+ch1_cloud <- ggplot(data = ch1_top100, aes(label = word)) +
+  geom_text_wordcloud(aes(color = n, size = n), shape = "diamond") +
+  scale_size_area(max_size = 6) +
+  scale_color_gradientn(colors = c("darkgreen","blue","purple")) +
+  theme_minimal()
+
+ch1_cloud
+```
+
+## How do sentiments change over the course of the book?
+
+Let's explore the sentiment lexicons. "bing" included, other lexicons ("afinn", "nrc", "loughran") you'll be prompted to to download.
+
+**WARNING:** These collections include the most offensive words you can think of.
+
+### afinn lexicon
+
+"afinn": Words ranked from -5 (very negative) to +5 (very positive)
+
+```{r}
+afinn_lex <- get_sentiments(lexicon = "afinn")
+### you may be prompted to download an updated lexicon - say yes!
+
+# Let's look at the pretty positive words:
+afinn_pos <- get_sentiments("afinn") |> 
+  filter(value %in% c(3,4,5))
+
+# Check them out:
+DT::datatable(afinn_pos)
+```
+
+### bing lexicon
+
+For comparison, check out the bing lexicon:
+
+```{r}
+bing_lex <- get_sentiments(lexicon = "bing")
+```
+
+Note the bing lexicon is the simplest of all - just positive/negative!
+
+### nrc lexicon
+
+And the nrc lexicon:https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm includes bins for 8 emotions (anger, anticipation, disgust, fear, joy, sadness, surprise, trust) and positive / negative.
+
+
+```{r}
+nrc_lex <- get_sentiments(lexicon = "nrc")
+```
+
+Note some words fall into multiple emotions!
+
+## Sentiment analysis with bing:
+
+First, bind words in `hobbit_nonstop_words` to `bing` lexicon:
+
+```{r}
+hobbit_bing <- hobbit_words |> 
+  inner_join(bing_lex, by = 'word') ### why inner_join?
+```
+
+Find the summary of the sentiments for each chapter. Then plot the results in a `geom_col` with a `facet_wrap` on chapters
+
+```{r}
+
+```
+
+But, what if the writer just likes to use more positive or more negative words? How can we balance that out? Get a book-wide (or catalog-wide) average of sentiment and compare each chapter to that average!
+
+The following code translates the relevant proportion into log odds. Breakdown each line of the code to understand what it is doing by commenting to the side.
+
+```{r}
+# find log ratio score overall:
+bing_log_ratio_book <- hobbit_bing |> 
+  summarize(n_pos = sum(sentiment == 'positive'),
+            n_neg = sum(sentiment == 'negative'),
+            log_ratio = log(n_pos / n_neg))
+
+# Find the log ratio score by chapter: 
+bing_log_ratio_ch <- hobbit_bing |> 
+  group_by(chapter) |> 
+  summarize(n_pos = sum(sentiment == 'positive'),
+            n_neg = sum(sentiment == 'negative'),
+            log_ratio = log(n_pos / n_neg)) |>
+  mutate(log_ratio_adjust = log_ratio - bing_log_ratio_book$log_ratio) |>
+  mutate(pos_neg = ifelse(log_ratio_adjust > 0, 'pos', 'neg'))
+
+ggplot(data = bing_log_ratio_ch, 
+       aes(x = log_ratio_adjust,
+           y = fct_rev(factor(chapter)),
+           fill = pos_neg)) +
+           # y = fct_rev(as.factor(chapter)))) +
+  geom_col() +
+  labs(x = 'Adjusted log(positive/negative)',
+       y = 'Chapter number') +
+  scale_fill_manual(values = c('pos' = 'slateblue', 'neg' = 'darkred')) +
+  theme_minimal() +
+  theme(legend.position = 'none')
+  
+```
+

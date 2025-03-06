@@ -1,0 +1,153 @@
+---
+title: "Template
+---
+
+```{r setup}
+library(tidyverse)
+```
+
+
+Want to learn more about working with regex *without* the `stringr` package functions? Read a nice introduction from Roger Peng [HERE](https://bookdown.org/rdpeng/rprogdatascience/regular-expressions.html).
+
+Always check out the package cheatsheets especially how to use regex.
+
+[Cheatsheet for stringr](https://evoldyn.gitlab.io/evomics-2018/ref-sheets/R_strings.pdf)
+
+## Useful functions in `stringr`
+
+Use the `vec` object below and the `starwars` dataset to test out some stringr functions. Run the code chunk below and use `View(starwars)` in your console.
+
+```{r}
+# Make a little vector
+vec <- c("  A Unicorn     Fish", 
+         " add   Cornmeal ", 
+         " Herbivore Carnivore  ",
+         "  French FRIES", 
+         " acorn squash  ")
+
+```
+
+
+### Change string case
+
+It can also be useful to update the *case* of strings in your code. Since, for example, "Fish" will be seen entirely differently from "fish". We can use the `str_to_*()` functions to change the case.
+
+-   `str_to_lower()`
+-   `str_to_upper()`
+-   `str_to_title()`
+-   `str_trim()`
+-   `str_squish()`
+
+Apply each function individually to the `vec` object. Describe what each function does.
+
+
+
+
+
+
+### Detect a pattern
+
+Use `stringr::str_detect()` to detect a string pattern. For example, if I want to look for any element of `vec` that has "corn" in it, I can run the following code. How might this be useful? Did I catch every instance of "corn" in the data? Why or why not? Create a way to fix it with code!
+
+
+```{r}
+# detect a string pattern: 
+str_detect(vec, pattern = "corn")
+
+```
+
+We see that it returns a T/F vector indicating whether or not the pattern "corn" exists within each element of the vector.
+
+How might we use that in a data frame? It can be helpful to use `str_detect()` within `filter()` to only keep observations that contain that pattern in the specified variable.
+
+
+
+Now use `filter()` and `str_detect()` to filter only characters whose name is Skywalker from the `starwars` dataset. Using "walk" as your pattern.
+
+```{r}
+
+```
+
+
+### First Regex
+
+Our first catwalking across a keyboard shows how much more adaptive code can be when looking for text patterns. What happens when I update the pattern using simple regex? What now gets counted as the pattern?
+
+```{r}
+str_detect(str_to_lower(vec),pattern="c.rn")  # first example of a regex  '.' is a wildcard meaning any single letter can go between c and rn
+```
+
+The "Carnivore" also gets count because it as a "c.rn" pattern.
+
+Here's a more complicated regex. This time, we're filtering out characters whose name is entirely capitalized.
+
+```{r}
+
+### Regex example: two or more cap letters!
+cap_subset <- starwars |> 
+  filter(str_detect(name, pattern = '[A-Z]{2,}')) 
+  ### NOTE: NO SPACE AFTER COMMA
+  ### Regex is powerful but complicated, like the force!
+```
+
+### Replace a pattern
+
+Use `stringr::str_replace()` to replace a pattern with something else.
+
+```{r}
+str_replace(vec, pattern = "r", replacement = "ARRR") ### first instance only
+str_replace_all(vec, pattern = "a", replacement = "ZZZ")
+```
+
+In the `starwars` data, let's replace any "Sky" string pattern with "CIELO", overwriting the existing `name` column.
+
+```{r}
+
+```
+
+
+
+And we can use these things in combination, usually within `mutate()` if it's to update a column in a data frame.
+
+Use your data wrangling skills to turn all names in the `starwars` data to lower case. Then filter out all the Sith with "Darth" titles in their names. Finally, bring balance to the force and change their names to "happy".
+
+```{r}
+
+```
+
+
+
+Here's another example with regex. Best way to interpret the cat walking is look for any lower or uppercase w followed by a b or a. Remove everything after the last observed letter.
+
+```{r}
+sw_wawa <- starwars |> 
+  mutate(name2 = str_replace(name, pattern = '(w|W)b?a.+', replacement = 'WAWA')) |> 
+  select(name, name2)
+```
+
+
+## Other useful functions in `stringr`
+
+`str_extract`/`str_extract_all` to grab all instances that match a pattern (useful when using regex pattern strings)
+
+```{r}
+sw_firstnames <- starwars |> 
+  mutate(firstname = str_extract(name, '[A-Za-z0-9]+')) |>  ### EXCLUDES spaces and punctuation
+  select(name, firstname)
+```
+
+`str_locate` to identify positions of matches (regex or otherwise) - trickier to use in a dataframe but possible!
+
+```{r}
+sw_where_sky <- starwars$name |> 
+  str_to_lower() |> 
+  str_locate('sky')
+```
+
+`str_sub` to extract characters by position in a string
+
+```{r}
+sw_abbr <- starwars |> 
+  select(name, homeworld) |> 
+  mutate(homeworld_abbr = str_sub(homeworld, start = 1, end = 3))
+```
