@@ -1,5 +1,18 @@
 ---
-title: "Template
+title: "Agglomerative Hierarchical Clustering"
+author: "Nadav Kempinski"
+date: "`r Sys.Date()`"
+editor: visual
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+    theme: lux
+execute:
+  eval: true
+  message: false
+  warning: false
+toc: true
 ---
 
 ```{r setup}
@@ -32,6 +45,17 @@ vec <- c("  A Unicorn     Fish",
 
 It can also be useful to update the *case* of strings in your code. Since, for example, "Fish" will be seen entirely differently from "fish". We can use the `str_to_*()` functions to change the case.
 
+```{r}
+# -   `str_to_lower()`
+vec |>
+  str_to_lower()
+
+# -   `str_to_upper()`
+# -   `str_to_title()`
+# -   `str_trim()`
+# -   `str_squish()`
+```
+
 -   `str_to_lower()`
 -   `str_to_upper()`
 -   `str_to_title()`
@@ -52,7 +76,7 @@ Use `stringr::str_detect()` to detect a string pattern. For example, if I want t
 
 ```{r}
 # detect a string pattern: 
-str_detect(vec, pattern = "corn")
+str_detect(str_to_lower(vec), pattern = "corn")
 
 ```
 
@@ -65,7 +89,8 @@ How might we use that in a data frame? It can be helpful to use `str_detect()` w
 Now use `filter()` and `str_detect()` to filter only characters whose name is Skywalker from the `starwars` dataset. Using "walk" as your pattern.
 
 ```{r}
-
+starwars |>
+  filter(str_detect(name, pattern = "Skywalker"))
 ```
 
 
@@ -102,7 +127,9 @@ str_replace_all(vec, pattern = "a", replacement = "ZZZ")
 In the `starwars` data, let's replace any "Sky" string pattern with "CIELO", overwriting the existing `name` column.
 
 ```{r}
-
+starwars |>
+  filter(str_detect(name, pattern="Sky")) |>
+  mutate(name = str_replace_all(name, pattern = "Sky", replacement="CIELO"))
 ```
 
 
@@ -112,7 +139,10 @@ And we can use these things in combination, usually within `mutate()` if it's to
 Use your data wrangling skills to turn all names in the `starwars` data to lower case. Then filter out all the Sith with "Darth" titles in their names. Finally, bring balance to the force and change their names to "happy".
 
 ```{r}
-
+starwars |>
+  mutate(name = str_to_lower(name)) |>
+  filter(str_detect(name,pattern="darth")) |>
+  mutate(name = str_replace_all(name, pattern="darth",replacement="happy"))
 ```
 
 
@@ -121,8 +151,10 @@ Here's another example with regex. Best way to interpret the cat walking is look
 
 ```{r}
 sw_wawa <- starwars |> 
-  mutate(name2 = str_replace(name, pattern = '(w|W)b?a.+', replacement = 'WAWA')) |> 
+  mutate(name2 = str_replace(name, pattern = '(w|W)(b?a).+', replacement = 'WAWA')) |> 
   select(name, name2)
+
+sw_wawa
 ```
 
 

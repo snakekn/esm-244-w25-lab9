@@ -14,6 +14,7 @@ library(textdata)
 
 ```{r}
 hobbit_text <- pdftools::pdf_text(here::here('data', 'the-hobbit.pdf'))
+print(hobbit_text)
 ```
 
 -   Each row is a page of the PDF (i.e., this is a vector of strings, one for each page)
@@ -27,6 +28,7 @@ Example: Just want to get text from a single page (e.g. Page 34)?
 
 ```{r}
 hobbit_p34 <- hobbit_text[34]
+hobbit_p34
 ```
 
 ## The analysis:
@@ -52,6 +54,14 @@ Two new functions will help us get there:
 Hint: What patterns did you notice about of how each page handles line skips?
 
 ```{r}
+hobbit_lines = data.frame(hobbit_text) |>
+  mutate(page=1:n(),
+         line_text = str_split(string = hobbit_text, pattern="\\n")) |>
+  unnest(cols=line_text) |>
+  mutate(line_text = str_squish(line_text))
+  
+  str_split(pattern="\n")
+
 
 ```
 
@@ -63,11 +73,19 @@ We will use `str_detect()` to look for any cells in "text_full" column that cont
 
 ```{r}
 hobbit_chapts <- hobbit_lines |> 
-  slice(-(1:137)) |> 
-  mutate(chapter = XXX) |> 
-  fill(chapter, .direction = 'down') |>
-  separate(col = chapter, into = c("ch", "num"), sep = " ") |> 
-  mutate(chapter = as.numeric(as.roman(num)))
+  slice(-(1:137)) |> # manually remove the first 137 (before Ch.1 begins)
+  mutate(chapter = str_match(string=line_text,pattern="Chapter (.+)")[,2]) |> # matches the entire pattern from that line of text & the capture substring, but only keeps the capture substring
+  fill(chapter,.direction="down") |> # sets the fill
+  mutate(chapter=chapter) # fills all based on the last one that worked
+ 
+# OR
+hobbit_chapts_other = hobbit_lines |>
+  slice(-(1:137)) |>
+  mutate(chapter = ifelse(str_detect(line_text, "Chapter"), line_text, NA))|> # checks if chapter is there, then keeps the line if it is
+  fill(chapter, .direction = "down") |> 
+  separate(col=chapter,into=c("ch","num",sep=" ")) |> # separates it into chapter and number if chapter is there
+  mutate(chapter = as.numeric(as.roman(num))) # keeps the chapter segment
+
 ```
 
 ## Get some word counts by Chapter!
@@ -76,7 +94,7 @@ Now that we have wrangled so that each line has all the text, we need to tokeniz
 
 ```{r}
 hobbit_words <- hobbit_chapts |> 
-  unnest_tokens(word, text_full) |> 
+  unnest_tokens(word, line_text) |> 
   select(-hobbit_text)
 ```
 
@@ -84,7 +102,8 @@ hobbit_words <- hobbit_chapts |>
 `dplyr::count()` is a cool function that quickly counts up the observation of a specific word or instance of data without using the usual `group_by()` to `summarize(n=n())` format. Use `count()` to quickly see how many times specific words occured in each chapter.
 
 ```{r}
-
+hobbit_wordcount = hobbit_words |>
+  count(chapter,word)
 ```
 
 
@@ -99,6 +118,7 @@ We will *remove* stop words using `tidyr::anti_join()`, which will *omit* any wo
 
 wordcount_clean <- hobbit_wordcount |> 
   anti_join(stop_words, by = 'word')
+View(wordcount_clean)
 ```
 
 ## Find the top 5 words from each chapter
@@ -106,7 +126,20 @@ wordcount_clean <- hobbit_wordcount |>
 Wrangle the top 5 word counts in each chapter then make a geom_col graph with a facet_wrap on each chapter.
 
 ```{r}
+# must restart to include chapters
 
+hobbit_word_chapters = wordcount_clean |>
+  group_by(chapter)|>
+  arrange(desc(n))|>
+  slice(1:5)|>
+  ungroup()
+
+hobbit_word_chapters |>
+  ggplot(aes(x=n,y=word))+
+  geom_col(fill="blue")+
+  facet_wrap(~chapter,scales = "free")
+  
+hobbit_word_chapters
 ```
 
 ## Let's make a word cloud for Chapter 1
@@ -116,7 +149,10 @@ Wordclouds are fun visualizations to see the composition of words in a document.
 Use your own data wrangling skills to create a data frame of only the 100 words in Chapter 1 with the stop words removed. Call the new dataframe `ch1_top100`.
 
 ```{r}
-
+ch1_top100 = wordcount_clean |>
+  filter(chapter=="I") |>
+  arrange(desc(n)) |>
+  slice(1:100)
 ```
 
 
@@ -187,7 +223,13 @@ hobbit_bing <- hobbit_words |>
 Find the summary of the sentiments for each chapter. Then plot the results in a `geom_col` with a `facet_wrap` on chapters
 
 ```{r}
+sentiment_chapter = hobbit_bing |>
+  count(chapter, sentiment)
 
+sentiment_chapter |>
+  ggplot(aes(x=sentiment,y=n))+
+  geom_col()+
+  facet_wrap(~chapter)
 ```
 
 But, what if the writer just likes to use more positive or more negative words? How can we balance that out? Get a book-wide (or catalog-wide) average of sentiment and compare each chapter to that average!
@@ -220,7 +262,8 @@ ggplot(data = bing_log_ratio_ch,
        y = 'Chapter number') +
   scale_fill_manual(values = c('pos' = 'slateblue', 'neg' = 'darkred')) +
   theme_minimal() +
-  theme(legend.position = 'none')
+  theme(legend.position = 'none')+
+  labs(title="Sentiment Rating of Each Chapter")
   
 ```
 
