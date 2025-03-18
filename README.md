@@ -9,5 +9,4 @@ This lab was a learning module as part of the ESM 244 course in Advanced Data An
 
 ![Wordcloud of frequently used words in the Hobbit (by JRR Tolkien)](wordcloud.png)
 
-
 ![Scale of positive-to-negative words used in the Hobbit](sentiment.png)
